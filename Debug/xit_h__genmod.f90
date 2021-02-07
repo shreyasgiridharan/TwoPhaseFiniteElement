@@ -1,0 +1,7 @@
+        !COMPILER-GENERATED INTERFACE MODULE: Tue Jun 20 15:19:18 2017
+        MODULE XIT_H__genmod
+          INTERFACE 
+            SUBROUTINE XIT_H
+            END SUBROUTINE XIT_H
+          END INTERFACE 
+        END MODULE XIT_H__genmod

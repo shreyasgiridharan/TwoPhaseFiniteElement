@@ -1,0 +1,15 @@
+1 1
+1 1
+    1               0               0               0
+    2               1               0               0
+    3               1               1               0
+    4               0               1               0
+1 2 3 4 1 		 						    !Element node connectivity	
+10000,0.3,1.0,0.503,0.001 					! E, nu, rho, initial porisity, initial permeability
+8000.0,0.3,10.0,30,0						! E, Nu, COH, PHI, PSI
+31.5,1.6,2.3E6,0.3,0.391,0.688,0.791	    !Phic, Pt, hs, n, e_d0, e_c0 e_i0
+0.13,1.0,4.4,2.2,1E-4,0.2,6,0.497 		    !alpha, beta, m_r, m_t, R_max, beta_r, chi, e_0
+32,33,0,400,400,900 		 			    !Phic, Phip, c, kGe, kGp, kBe
+0.5,0.5,0.5,0.98,100,0,0.45,8,0.01			!me, ne, np, Rf, pA, SigT, fachard, (N1)60, facpost
+0.0, 0.0
+5000000,0.00001
