@@ -1,6 +1,6 @@
     module modulefem
 !*********************************************************************
-!    Function:
+!    Function: initialise all the variables, and define all functions
 !**********************************************************************
     implicit none
     logical, dimension(:), allocatable :: IsFixDof
@@ -31,7 +31,8 @@
 
     subroutine solve()
     !**********************************************************************
-    !    Function:
+    !    Function: main solver, running till end of simulation time
+    !    control the total time of the simulation using the input data
     !**********************************************************************
 
     implicit none
@@ -67,33 +68,19 @@
 
             call Map2nod()
             call update()
-       
-    
-       !if(itime*dt.gt.10.d0) then     
+      
        if(itime.eq.1 .or. (itime/iprint)*iprint == itime .or. itime == ndtn) then
            
            !write (*,*) ITime, ITime*dt, -SigE(2,1,1) + SigE(1,1,1)
            write (*,*) ITime, ITime*dt, SigE(3,1,1)
            
            
-           !write (LOGUnit,*) SigE(2,1,1),',', PoreP(2,1,1), ',', EpsG(2,1,1)
-           !write (LOGUnit,*) SigE(1,1,1) - SigE(2,1,1),',', PoreP(2,1,1), ',', EpsG(2,1,1)
-           !write (LOGUnit,*)  -1*EpsG(2,1,1),',',SigE(1,1,1) - SigE(2,1,1),',', PoreP(2,1,1)
-           !write (LOGUnit,*)  EpsG(3,1,1)*2.D0,',',SigE(3,1,1),',', (SigE(1,1,1) + SigE(2,1,1))/2.d0
+           
            write (LOGUnit,*)  EpsG(3,1,1)*2.D0,',',SigE(3,1,1),',', PoreP(2,4,1)
            !write (LOGUnit,*)  PoreP(2,1,1), ',', PoreP(2,2,1), ',', PoreP(2,3,1) 
-           !write (LOGUnit,*)  PoreP(2,4,1)
-           !write (LOGUnit,*)  EpsG(3,1,1),',',SigE(3,1,1),',', (SigE(1,1,1) + SigE(2,1,1))/2.d0
-           !write (LOGUnit,"(17(E10.4,x))")  EpsG(3,1,1),PoreP(2,1,1), SigE(3,1,1), (SigE(1,1,1) + SigE(2,1,1))/2.d0
-           !write (LOGUnit,"(17(E10.4,x))") V(1), V(2), v(3), v(4), v(5), v(6), v(7), v(8)
-           !write (LOGUnit,"(17(E10.4,x))") W(1)-V(1), W(2)-V(2), W(3)-V(3), W(4)-V(4), W(5)-V(5), W(6)-V(6), W(7)-V(7), W(8)-V(8)
-           !write (LOGUnit,"(17(E10.4,x))") w(1), w(2), w(3), w(4), W(5), w(6), w(7), w(8)
-           
-           !write (LOGUnit,"(17(E10.4,x))") SigE(1,1,1), SigE(2,1,1), SigE(3,1,1), PoreP(2,1,1), EpsG(2,1,1)
+         
        endif
-       !endif
-       
-      
+
        if(itime.eq.1 .or. (itime/imeshwrite)*imeshwrite == itime .or. itime == ndtn) then
            IStep = IStep + 1
            call WtRES(IStep)
@@ -134,7 +121,7 @@
 
     subroutine readdata()
     !**********************************************************************
-    !    Function: Make a file
+    !    Function: Reada data from data file. Also allocate all the dynamic components
     !**********************************************************************
 
     implicit none
@@ -201,26 +188,29 @@
     read(DATUnit, *) MatProp(11), MatProp(12), MatProp(13), MatProp(14), MatProp(15), MatProp(16), MatProp(17) ! Phic, Pt, hs, n, e_d0, e_c0 e_i0
     read(DATUnit, *) MatProp(18), MatProp(19), MatProp(20), MatProp(21), MatProp(22), MatProp(23), MatProp(24), MatProp(25) ! alpha, beta, m_r, m_t, R_max, beta_r, chi, e_0
     !read(DATUnit, *) MatProp(26), MatProp(27), MatProp(28), MatProp(29), MatProp(30), MatProp(31), MatProp(32) !for clay only
-    read(DATUnit, *) MatProp(26), MatProp(27), MatProp(28), MatProp(29), MatProp(30), MatProp(31)
-    read(DATUnit, *) MatProp(32), MatProp(33), MatProp(34), MatProp(35), MatProp(36), MatProp(37), MatProp(38), MatProp(39), MatProp(40)
-    read(DATUnit, *) gx, gy
-    read(DATUnit, *) ndtn, dt
+    read(DATUnit, *) MatProp(26), MatProp(27), MatProp(28), MatProp(29), MatProp(30), MatProp(31) ! dummy variables now. Previously used for anisoviscohypoplastic material model
+    read(DATUnit, *) MatProp(32), MatProp(33), MatProp(34), MatProp(35), MatProp(36), MatProp(37), MatProp(38), MatProp(39), MatProp(40) ! see above
+    read(DATUnit, *) gx, gy ! only apply gy, unless you really want to apply a horizontal component
+    read(DATUnit, *) ndtn, dt ! total number of steps, incremental time (delta t)
     close(1)
     
     do IEl = 1, NEl
         INod(:) = ICon(:, IEl)
-        Area(IEl) = abs(NodCo(1,INod(3))-NodCo(1,INod(1)))* abs(NodCo(2,INod(3))-NodCo(2,INod(1)))
+        Area(IEl) = abs(NodCo(1,INod(3))-NodCo(1,INod(1)))* abs(NodCo(2,INod(3))-NodCo(2,INod(1))) ! calculate area
     end do
 
     ! Boundary Conditions
-    IsFixDof = .false.
-    
+    IsFixDof = .false. ! boundary conditions, initialise to false
+
+    ! use the bottom snippet for element test
     !IsFixDof(1) = .true.
     !IsFixDof(2) = .true.
     !IsFixDof(3) = .true.
     !IsFixDof(4) = .true.
     !IsFixDof(5) = .true.
     !IsFixDof(7) = .true.
+
+    ! complex boundary conditions
           
     
     do I = 1, NNod ! vertical bar problem
@@ -277,11 +267,11 @@ subroutine Initial()
     rhoSat= rhoD + poro * rhoW
     
     !********************************************************
-    temp = 1.D0/sqrt(3.d0)
+    temp = 1.D0/sqrt(3.d0) ! 4 Gauß points
     
-    !temp=0.d0
+    !temp=0.d0 ! 1 Gauß points
     
-    !temp = 0.5D0
+    !temp = 0.5D0 ! trick from Prof. Stolle. Trying it out for now
     !********************************************************
 
     B = 0.0d0
@@ -319,7 +309,7 @@ subroutine Initial()
             dNxi(1, 4) = -0.25D0 * sp; dNxi(2, 1) = -0.25D0 * rm; dNxi(2, 2) = -0.25D0 * rp
             dNxi(2, 3) = +0.25D0 * rp; dNxi(2, 4) = +0.25D0 * rm
 
-            HS(1, iel, ig) = (1.D0 - xi)*(1.D0 - eta)/4.D0
+            HS(1, iel, ig) = (1.D0 - xi)*(1.D0 - eta)/4.D0 ! Shape functions
             HS(2, iel, ig) = (1.D0 + xi)*(1.D0 - eta)/4.D0
             HS(3, iel, ig) = (1.D0 + xi)*(1.D0 + eta)/4.D0
             HS(4, iel, ig) = (1.D0 - xi)*(1.D0 + eta)/4.D0
@@ -331,23 +321,25 @@ subroutine Initial()
             do I = 1, 2
                 do J = 1, 2
                     do K = 1, 4
-                        Ja(I, J) = Ja(I, J) + dNxi(I, K) * NodCo(J, INod(K))
+                        Ja(I, J) = Ja(I, J) + dNxi(I, K) * NodCo(J, INod(K)) ! Jacobian
                     end do
                 end do
             end do
             A = Ja(1, 1) * Ja(2, 2) - Ja(1, 2) * Ja(2, 1)
 
             if (A .gt. 0.D0) then
-                JaI(1, 1) = +Ja(2, 2)/A; JaI(1, 2) = -Ja(1, 2)/A
+                JaI(1, 1) = +Ja(2, 2)/A; JaI(1, 2) = -Ja(1, 2)/A ! Inverse fo Jacobian
                 JaI(2, 1) = -Ja(2, 1)/A; JaI(2, 2) = +Ja(1, 1)/A
             else
                 write(LOGUnit, *) 'negative or zero Jacobian !!'; stop
             end if
 
             do J = 1, 4
-                B(1, J, IEl, ig) = dNxi(1, J) * JaI(1, 1) + dNxi(2, J) * JaI(1, 2)
+                B(1, J, IEl, ig) = dNxi(1, J) * JaI(1, 1) + dNxi(2, J) * JaI(1, 2) ! Strain displacement matrix
                 B(2, J, IEl, ig) = dNxi(1, J) * JaI(2, 1) + dNxi(2, J) * JaI(2, 2)
             end do
+
+            ! The following snippets of code are numerical tricks from Prof. Stolle. Use only if you as
             
             AreaAvg = abs(NodCo(1, INod(3)) - NodCo(1, INod(1))) * abs(NodCo(2, INod(4)) - NodCo(2, INod(2))) +&
                         abs(NodCo(1, INod(2)) - NodCo(1, INod(4))) * abs(NodCo(2, INod(3)) - NodCo(2, INod(1)))
@@ -435,53 +427,10 @@ subroutine Map2Nod()
        factor = itime * dt / 1.0d0    
     endif 
     
-    !factor = itime * dt
-    !if(itime*dt.le.1.0D0) factor = itime * dt / 1.D0
-    !if(itime*dt.gt.1.0D0) factor = 1.d0
-    
-   !if(itime*dt.lt.(0.5d0)) then 
-   !     ExtF(2) = -0.3
-   !     ExtF(4) = -0.3
-   !     ExtP(2) = -0.3
-   !     ExtP(4) = -0.3
-   !else
-   !     factor =  1.d0
-   !     ExtF(2) = -0.3
-   !     ExtF(4) = -0.3
-   !     ExtP(2) = 0
-   !     ExtP(4) = 0
-   ! endif
-        !if(itime*dt.le.10.D0) then
-        !ExtF(3) = -50.D0 ; !ExtP(3) = 0.D0
-        !ExtF(5) = -50.D0 ; !ExtP(5) = 0.D0
-        !ExtF(6) = -50.D0 ; !ExtP(6) = 0.D0
-        !ExtF(8) = -50.D0 ; !ExtP(8) = 0.D0
-        !ExtF(1) =  50.D0 ;
-        !ExtF(7) =  50.D0 ;
-        !endif
-        !
-        !if(itime*dt.gt.10.d0) then
-        !  ExtF(3) = -50.D0 ;  !ExtP(3) = PoreP(2,1,1)
-        !  ExtF(1) =  50.D0 ;  !ExtP(1) =  PoreP(2,1,1)
-        !  ExtF(5) = -50.D0 ;  !ExtP(5) = PoreP(2,1,1)
-        !  ExtF(7) =  50.D0 ;  !ExtP(7) = PoreP(2,1,1)
-        !  ExtF(8) = -50.D0
-        !  ExtF(6) = -50.D0
-        !  ExtF(7) =  50.D0
-        !  ExtF(5) = -50.D0
-        !endif  
-                
-    
+ 
         timer = itime*dt
         
-        !if(itime*dt.gt.10.D0) then
-        !    ExtF(6) = -50.D0 
-        !    ExtF(8) = -50.D0 
-            !ExtF(3) = -50.D0
-            !ExtF(5) = -50.D0 
-            !ExtF(1) =  50.D0
-            !ExtF(7) =  50.D0
-        !end if 
+      ! Cyclic load application
         
         !facmul = 0.d0
         !
@@ -493,49 +442,6 @@ subroutine Map2Nod()
         !    if(timer.ge.17.5d0.and.timer.lt.20.d0) facmul = ((timer-17.5d0)/2.5d0 - 1.d0)
         !    
         !    if(timer.gt.10.d0.and.timer.le.12.5d0.or.timer.gt.17.5d0) then
-        !        switch = +1.D0
-        !    else
-        !        switch = -1.D0
-        !    endif
-        !endif 
-        !
-        !if(timer.ge.20.d0) then
-        !    
-        !    if(timer.ge.20.d0.and.timer.lt.22.5d0) facmul = (timer-20.d0)/2.5d0
-        !    if(timer.ge.22.5d0.and.timer.lt.25.d0) facmul = ((timer-22.5d0)/2.5d0 - 1.d0)
-        !    if(timer.ge.25.d0.and.timer.lt.27.5d0) facmul = (timer-25.d0)/2.5d0
-        !    if(timer.ge.27.5d0.and.timer.lt.30.d0) facmul = ((timer-27.5d0)/2.5d0 - 1.d0)
-        !    
-        !    if(timer.ge.20.d0.and.timer.le.22.5d0.or.timer.gt.27.5d0) then
-        !        switch = +1.D0
-        !    else
-        !        switch = -1.D0
-        !    endif        
-        !end if 
-        !
-        !
-        !if(timer.ge.30.d0) then
-        !    
-        !    if(timer.ge.30.d0.and.timer.lt.32.5d0) facmul = (timer-30.d0)/2.5d0
-        !    if(timer.ge.32.5d0.and.timer.lt.35.d0) facmul = ((timer-32.5d0)/2.5d0 - 1.d0)
-        !    if(timer.ge.35.d0.and.timer.lt.37.5d0) facmul = (timer-35.d0)/2.5d0
-        !    if(timer.ge.37.5d0.and.timer.lt.40.d0) facmul = ((timer-37.5d0)/2.5d0 - 1.d0)
-        !    
-        !    if(timer.ge.30.d0.and.timer.le.32.5d0.or.timer.gt.37.5d0) then
-        !        switch = +1.D0
-        !    else
-        !        switch = -1.D0
-        !    endif
-        !endif 
-        !
-        !if(timer.ge.40.d0) then
-        !    
-        !    if(timer.ge.40.d0.and.timer.lt.42.5d0) facmul = (timer-40.d0)/2.5d0
-        !    if(timer.ge.42.5d0.and.timer.lt.45.d0) facmul = ((timer-42.5d0)/2.5d0 - 1.d0)
-        !    if(timer.ge.45.d0.and.timer.lt.47.5d0) facmul = (timer-45.d0)/2.5d0
-        !    if(timer.ge.47.5d0.and.timer.lt.50.d0) facmul = ((timer-47.5d0)/2.5d0 - 1.d0)
-        !    
-        !    if(timer.ge.40.d0.and.timer.le.42.5d0.or.timer.gt.47.5d0) then
         !        switch = +1.D0
         !    else
         !        switch = -1.D0
@@ -568,16 +474,8 @@ subroutine Map2Nod()
                 GrvF(Id + 2) = GrvF(Id + 2) + Area(iel) * rhoSat * hs(i, iel, ig) * gy /4.d0 * factor
                 MasS(Id + 1) = MasS(Id + 1) + Area(iel) * (1 - poro) * rhoS * hs(i, iel, ig) /4.d0
                 MasS(Id + 2) = MasS(Id + 2) + Area(iel) * (1 - poro) * rhoS * hs(i, iel, ig) /4.d0
-                
-                !!! Soil part with new B Matrix
-                !InrF(Id + 1) = InrF(Id + 1)+(Sigg(1,ig,IEl) * BNEW(1,I*2-1,iel,ig) + Sigg(3,ig,IEl) * BNEW(3, I*2, iel, ig)) * Area(iel)/4.d0
-                !InrF(Id + 2) = InrF(Id + 2)+(Sigg(3,ig,IEl) * BNEW(3,I*2-1,iel,ig) + Sigg(2,ig,IEl) * BNEW(2, I*2, iel, ig)) * Area(iel)/4.d0
-                !GrvF(Id + 1) = GrvF(Id + 1) + Area(iel) * rhoSat * hs(i, iel, ig) * gx /4.d0 * factor
-                !GrvF(Id + 2) = GrvF(Id + 2) + Area(iel) * rhoSat * hs(i, iel, ig) * gy /4.d0 * factor
-                !MasS(Id + 1) = MasS(Id + 1) + Area(iel) * (1 - poro) * rhoS * hs(i, iel, ig) /4.d0
-                !MasS(Id + 2) = MasS(Id + 2) + Area(iel) * (1 - poro) * rhoS * hs(i, iel, ig) /4.d0
-                
-                ! Water part
+
+                 ! Water part
                 InrFW(Id + 1) = InrFW(Id + 1) + (PoreP(1,ig,IEl) * B(1,I,iel,ig) + PoreP(3,ig,IEl) * B(2, I, iel, ig)) * Area(iel)/4.d0
                 InrFW(Id + 2) = InrFW(Id + 2) + (PoreP(3,ig,IEl) * B(1,I,iel,ig) + PoreP(2,ig,IEl) * B(2, I, iel, ig)) * Area(iel)/4.d0
                 GrvFW(Id + 1) = GrvFW(Id + 1) + Area(iel) * rhoW * hs(i, iel, ig) * gx /4.d0 * factor
@@ -589,7 +487,18 @@ subroutine Map2Nod()
                 DragF(Id + 1) = DragF(Id + 1) + ( Area(iel) *  rhoW * poro * 9.81d0 * hs(i, iel, ig) / (kappa * 4.d0)) !* (W0(Id+1) - V0(Id+1))
                 DragF(Id + 2) = DragF(Id + 2) + ( Area(iel) *  rhoW * poro * 9.81d0 * hs(i, iel, ig) / (kappa * 4.d0)) !* (W0(Id+2) - V0(Id+2))
                 
-                !! Water part
+                !------------------------!
+
+
+                ! Soil part with new B Matrix, selective reduced integration
+                !InrF(Id + 1) = InrF(Id + 1)+(Sigg(1,ig,IEl) * BNEW(1,I*2-1,iel,ig) + Sigg(3,ig,IEl) * BNEW(3, I*2, iel, ig)) * Area(iel)/4.d0
+                !InrF(Id + 2) = InrF(Id + 2)+(Sigg(3,ig,IEl) * BNEW(3,I*2-1,iel,ig) + Sigg(2,ig,IEl) * BNEW(2, I*2, iel, ig)) * Area(iel)/4.d0
+                !GrvF(Id + 1) = GrvF(Id + 1) + Area(iel) * rhoSat * hs(i, iel, ig) * gx /4.d0 * factor
+                !GrvF(Id + 2) = GrvF(Id + 2) + Area(iel) * rhoSat * hs(i, iel, ig) * gy /4.d0 * factor
+                !MasS(Id + 1) = MasS(Id + 1) + Area(iel) * (1 - poro) * rhoS * hs(i, iel, ig) /4.d0
+                !MasS(Id + 2) = MasS(Id + 2) + Area(iel) * (1 - poro) * rhoS * hs(i, iel, ig) /4.d0
+                             
+                ! Water part, selective reduced integration
                 !InrFW(Id + 1) = InrFW(Id + 1) + (PoreP(1,ig,IEl) * BNEW(1,I*2-1,iel,ig) + PoreP(3,ig,IEl) * BNEW(3, I*2, iel, ig)) * Area(iel)/4.d0
                 !InrFW(Id + 2) = InrFW(Id + 2) + (PoreP(3,ig,IEl) * BNEW(3,I*2-1,iel,ig) + PoreP(2,ig,IEl) * BNEW(2, I*2, iel, ig)) * Area(iel)/4.d0
                 !GrvFW(Id + 1) = GrvFW(Id + 1) + Area(iel) * rhoW * hs(i, iel, ig) * gx /4.d0 * factor
@@ -602,7 +511,9 @@ subroutine Map2Nod()
                 !DragF(Id + 2) = DragF(Id + 2) + ( Area(iel) *  rhoW * poro * 9.81d0 * hs(i, iel, ig) / (kappa * 4.d0)) * (W0(Id+2) - V0(Id+2))
             end do
         enddo !gauss / particles
-    enddo !nel  
+     enddo !nel
+
+     ! Compute the drag forces. I removed the velocity multiplication for the main subroutine for debugging
 	
 	do IEl = 1, nel
 	INod(:) = ICon(:, IEl)
@@ -632,118 +543,29 @@ subroutine Update()
     !Initial Velocity
     V = 0.d0
     W = 0.d0
-   
-    !if(itime*dt.eq.10.d0) EpsG = 0.d0 !Resetting strain to 0 after initial loading
-    
-    !if(itime*dt.gt.10.d0) dampf = 0.0001D0
-    
-    
-    !if(itime*dt.ge.10.D0) then
-    !    IsFixDOF    = .false. 
-    !    IsFixDOF(1) = .true.
-    !    IsFixDOF(2) = .true.
-    !    IsFixDOF(3) = .true.
-    !    IsFixDOF(4) = .true.
-    !    !IsFixDOF(6) = .true.
-    !    !IsFixDOF(8) = .true.
-    !endif 
-    
-    
+  
+    ! Compute incremental velocity. Local damping also included. Don't use more than 1%
     do I = 1, NNod
         Id = (I - 1) * 2
         if (.not.IsFixDof(Id + 1).and.(MasS(Id + 1) .gt. 0.D0)) then
             W(Id + 1) = W0(Id + 1) + (GrvFW(Id + 1) + ExtP(Id + 1) - InrFW(Id + 1) - DragF(Id + 1)) / MasW (Id + 1) * dt
             aW = (W(Id + 1) - W0(Id + 1)) / dt
             tem = V0(Id + 1) + (GrvF(Id + 1) + ExtF(Id + 1) - InrF(Id + 1) - (aW * MasbW (Id + 1)) ) / MasS(Id + 1) * dt
-            !V(Id + 1) = V0(Id + 1) + (GrvF(Id + 1) + ExtF(Id + 1) - InrF(Id + 1) - (aW * MasbW (Id + 1)) ) / MasS(Id + 1) * dt
+            !V(Id + 1) = V0(Id + 1) + (GrvF(Id + 1) + ExtF(Id + 1) - InrF(Id + 1) - (aW * MasbW (Id + 1)) ) / MasS(Id + 1) * dt ! without damping
             V(Id + 1) = tem  - sign(1.D0,tem) * dampf * abs(tem)
             end if
 
         if (.not.IsFixDof(Id + 2).and.(MasS(Id + 2) .gt. 0.D0)) then
             W(Id + 2) = W0(Id + 2) + (GrvFW(Id + 2) + ExtP(Id + 2) - InrFW(Id + 2) - DragF(Id + 2)) / MasW (Id + 2) * dt
             aW = (W(Id + 2) - W0(Id + 2)) / dt
-            !V(Id + 2) = V0(Id + 2) + (GrvF(Id + 2) + ExtF(Id + 2) - InrF(Id + 2) - (aW * MasbW (Id + 2)) ) / MasS(Id + 2) * dt
+            !V(Id + 2) = V0(Id + 2) + (GrvF(Id + 2) + ExtF(Id + 2) - InrF(Id + 2) - (aW * MasbW (Id + 2)) ) / MasS(Id + 2) * dt ! without damping
             tem = V0(Id + 2) + (GrvF(Id + 2) + ExtF(Id + 2) - InrF(Id + 2) - (aW * MasbW (Id + 2)) ) / MasS(Id + 2) * dt
             V(Id + 2) = tem - sign(1.D0,tem) * dampf * abs(tem)
             end if
     end do
     
-    
-    !if(itime*dt.GT.10.D0) then
-    !
-    !    V(6) = -0.008D0; W(6) = -0.008D0 
-    !    V(8) = -0.008D0; W(8) = -0.008D0
-    !
-    !    W(1) = V(1) 
-    !    W(3) = V(3) 
-    !    W(5) = V(5) 
-    !    W(7) = V(7) 
-    !
-    !endif 
-    
-    timer = itime*dt
-    
-    !if(timer.gt.10.d0) then
-    !    if(timer.gt.10.d0.and.timer.le.12.5d0.or.timer.gt.17.5d0.and.timer.le.20.d0.or.timer.gt.20.d0.and.timer.le.22.5d0.or.timer.gt.27.5d0) then
-    !        switch = +1.D0
-    !    else
-    !        switch = -1.D0
-    !    endif
-    !endif 
-    !
-    !if(timer.ge.30.d0) then
-    !    if(timer.ge.30.d0.and.timer.le.32.5d0.or.timer.gt.37.5d0) then
-    !        switch = +1.D0
-    !    else
-    !        switch = -1.D0
-    !    endif
-    !endif 
-    !
-    !if(timer.ge.40.d0) then
-    !    if(timer.ge.40.d0.and.timer.le.42.5d0.or.timer.gt.47.5d0) then
-    !        switch = +1.D0
-    !    else
-    !        switch = -1.D0
-    !    endif
-    !endif 
-    
-    !W(6) = V(6)
-    !W(8) = V(8)
-    
-    !W(5) = V(6)
-    !W(7) = V(7)
-    
-    !if(timer.gt.10.d0) then 
-    !    if(switch.gt.0.d0) then
-    !        !V(6) = 0.d0   ; W(6) = 0.d0
-    !        !V(8) = 0.d0   ; W(8) = 0.d0
-    !        !W(6) = V(6)
-    !        !W(8) = V(8)
-    !        
-    !        V(7) = 0.002d0 ; W(7) = 0.002d0
-    !        V(5) = 0.002d0 ; W(5) = 0.002d0
-    !        !W(5) = V(5)
-    !        !W(7) = V(7)
-    !        !W(3) = V(3)
-    !        !W(1) = V(1)
-    !    end if
-    !    if(switch.lt.0.d0) then
-    !        !V(6) = 0.d0   ; W(6) = 0.d0
-    !        !V(8) = 0.d0   ; W(8) = 0.d0
-    !        !W(6) = V(6)
-    !        !W(8) = V(8)
-    !        
-    !        V(7) = -0.002d0 ; W(7) = -0.002d0
-    !        V(5) = -0.002d0 ; W(5) = -0.002d0
-    !        !W(5) = V(5)
-    !        !W(7) = V(7)
-    !        !W(3) = V(3)
-    !        !W(1) = V(1)
-    !    end if
-    !end if 
-    
 
-
+    ! Velocity gradients
     do IEl = 1, NEl
         INod(:) = ICon(:, IEl)
         do ig = 1, 4
@@ -761,7 +583,7 @@ subroutine Update()
                 delW(3) = delW(3) + B(2, i, iel, ig) * W(Id + 1)
                 delW(4) = delW(4) + B(1, i, iel, ig) * W(Id + 2)
                 !
-                !!! New implementation
+                !!! New implementation, Selective reduced integration
                 !delV(1) = delV(1) + BNEW(1, i*2-1, iel, ig) * V(Id + 1)
                 !delV(2) = delV(2) + BNEW(2, i*2, iel, ig) * V(Id + 2)
                 !delV(3) = delV(3) + BNEW(3, i*2-1, iel, ig) * V(Id + 1)
@@ -787,30 +609,20 @@ subroutine Update()
             PoreP(3, ig, IEl) = 0.d0
         
         enddo !gauss
- 
+
+        ! Effective stress computation
         do ig = 1, 4
             call Elastic(MatProp(1), MatProp(2), Epsg(:,ig,IEL), SigE(:,ig,IEl))
             
-            !call Neutral_Liquefaction(SigE(:,ig,iel), dEps, DEL_Mat(:,:,ig,iel), Rev_Vect(:,ig,iel), MatProp(1), MatProp(2))
-            
-            !call Elastic(MatProp(6), MatProp(7), Epsg(:,ig,IEL), SigE(:,ig,IEl))
-            !call MOHRC(SIN(MatProp(9)*0.0174533D0), SIN(MatProp(10)*0.0174533D0), MatProp(8), MatProp(6), MatProp(7), SigE(:,ig,iel), NPLAST, FBAR, PLASTIND)
-            
-            !call IntfUMAT_Sand(dt, matprop, dEps, SigE(:,ig,iel), Statevar(:,ig,iel)) 
-            
-            !call Intf_DLL_Plaxis(dt, matprop, dEps, SigE(:,ig,iel), Statevar(:,ig,iel),PoreP(:,ig,iel), itime*dt)
+           
             Sigg(:,ig,IEL) = SigE(:,ig,IEL) + PoreP(:,ig,IEL)
-            
-            !StatevarPRINT(1,1:4,1:NEl) = ASIND(Statevar(1,1:4,1:NEl)/0.0174533D0)
-            !StatevarPRINT(2,1:4,1:NEl) = ASIND(Statevar(2,1:4,1:NEl)/0.0174533D0)
-            !StatevarPRINT(3,1:4,1:NEl) = ASIND(Statevar(5,1:4,1:NEl)/0.0174533D0)
-            
-            !PHIMOB(1,ig,iel) = ASIND(Statevar(1,ig,iel))
-            
+          
             !call smooth(Sigg(:,ig,iel),Area(IEl))
         enddo !gauss
      
-    enddo ! elements
+     enddo ! elements
+
+    ! update the displacements, and save the current velocities for next step 
 
     dis = dis + v * dt
     !DisW = DisW + w * dt
@@ -821,7 +633,10 @@ end subroutine Update
 
 
 subroutine smooth(SIG,AREA)
-    
+    !**********************************************************************
+    !    Function: smoothen using the area. Already used in MPM
+    !*************************** *******************************************
+
     implicit none
         
     double precision, intent(in) :: AREA
@@ -853,10 +668,11 @@ subroutine smooth(SIG,AREA)
         
 end subroutine 
 
-!*********************************************************
+
+subroutine Elastic(E, nu, eps, Sig)
+  !*********************************************************
 !       Elastic Hookes model
 !**********************************************************
-subroutine Elastic(E, nu, eps, Sig)
 
     implicit none
     
@@ -877,7 +693,183 @@ subroutine Elastic(E, nu, eps, Sig)
     Sig(4) = ((K_mod * Eps_tr) + 2 * G_mod * (0.d0 - (Eps_tr/3.d0)))
     Sig(3) = ( G_mod * eps(3))
                 
-endsubroutine elastic
+  endsubroutine elastic
+
+  subroutine VonMises(E, enu, Yield, Eps3, EpsP, s, EpsE)
+    !*********************************************************************
+    ! Von Mises Elasto-Plastic Model
+    !*******************************************************************************
+
+    implicit double precision (a - h, o - z)
+
+    double precision, intent(in) :: E, enu, Yield, Eps3(3)
+    double precision, intent(inout) :: S(7)
+    double precision, intent(inout) :: EpsP(6), EpsE(3)
+    integer :: i
+    double precision :: Eps(6), devt(6), dir(6), dev(6), eps_v(3), EpsPT(3)
+
+    B_K = E / (3.d0 * (1 - 2.d0 * enu)) ! Bulk-modulus K
+    G_mod = E /(2.d0 * (1.d0 + enu)) ! 2nd lame - mu (G) shear mod
+
+    gamma=0.d0
+    eps = 0.d0
+    eps(1:2) = Eps3(1:2)
+    eps(4) = Eps3(3)
+
+    ! write (LOgUnit, * ) Eps3
+    treps = eps(1) + eps(2) + eps(3)
+
+    ! dev of strain
+    do i=1,3
+        dev(i) = eps(i) - treps/3.d0
+        dev(i+3) = eps(i+3) / 2.d0
+    enddo
+
+    !deviatoric trial force
+    do i=1,6
+        devt(i) = 2.d0 * G_mod * (dev(i) - EpsP(i))
+    enddo
+
+    !norm
+    devtnorm = dsqrt(devt(1)**2.d0+ devt(2)**2.d0 + devt(3)**2.d0 + 2.d0* devt(4)**2.d0  &
+        + 2.d0* devt(5)**2.d0 + 2.d0* devt(6)**2.d0)
+    !write (LOGUnit, * ) devt(1), devt(2), devt(3)
+    if (devtnorm.eq.0.d0)  devtnorm =0.0000001d0
+
+    !direction of plastic flow
+    do i = 1, 6
+        dir(i) = devt(i)/(devtnorm)
+    enddo
+
+    !determine yield criterion
+    Yn = (dsqrt(2.d0/3.d0) * (Yield ))
+    phi = devtnorm - Yn
+
+    !to compute stresses
+    if ((phi .lt. 0.d0) ) then !elastic
+        s(1) = B_K * treps + devt(1) !  stresses
+        s(2) = B_K * treps + devt(2)
+        s(3) = B_K * treps + devt(3)
+        s(4) =  devt(4) !   plastic strains
+        s(5) = EpsP(2)
+        s(6) = EpsP(4)
+        s(7) = gamma
+        EpsE(1) = eps(1)
+        EpsE(2) = eps(2)
+        EpsE(3) = eps(3)
+
+    else !plastic
+        flag = 1.d0
+        Yn = (dsqrt(2.d0/3.d0) * (Yield ))
+
+        gamma = phi / (2.d0  * G_mod)
+
+        !update plastic strain
+        do i = 1, 6
+            EpsP(i) = EpsP(i)+ (dir(i)*(gamma))
+        enddo
+
+
+        EpsPv = (Eps(1) - EpsE(1) + Eps(2) - EpsE(2) + Eps(3) - EpsE(3)) / 3.d0
+
+        do i=1,3
+            EpsPT(i) = EpsP(i) + EpsPv
+        enddo
+
+        treps1 =Eps(1) - EpsPT(1) + Eps(2) - EpsPT(2) + Eps(3) - EpsPT(3)
+
+        s(1) = B_K * treps1 + devt(1) - ( 2.d0 * G_mod * flag * gamma * dir(1)) !  stresses
+        s(2) = B_K * treps1 + devt(2) - ( 2.d0 * G_mod *  flag * gamma * dir(2))
+        s(3) =  B_K * treps1 + devt(3) - ( 2.d0 * G_mod *  flag * gamma * dir(3))
+        s(4) = devt(4) - 2.d0 * G_mod * (flag * gamma * dir(4)) !   plastic strains
+        s(5) = EpsP(2)
+        s(6) = EpsP(4)
+        sigeq = (0.5d0 * ((s(1)-s(2))**2 + (s(2)-s(3))**2  +  (s(3)-s(1))**2 + 6*s(4)**2))
+        s(7) = dsqrt (sigeq)
+
+    endif
+
+    end subroutine VonMises
+
+
+
+    subroutine Eigen(a, x, abserr, n)
+    !===========================================================
+    ! Evaluate eigenvalues and eigenvectors
+    ! of a real symmetric matrix a(n,n): a*x = lambda*x
+    ! method: Jacoby method for symmetric matrices
+    ! Alex G. (December 2009)
+    !-----------------------------------------------------------
+    ! input ...
+    ! a(n,n) - array of coefficients for matrix A
+    ! n      - number of equations
+    ! abserr - abs tolerance [sum of (off-diagonal elements)^2]
+    ! output ...
+    ! a(i,i) - eigenvalues
+    ! x(i,j) - eigenvectors
+    ! comments ...
+    !===========================================================
+    implicit none
+    integer i, j, k, n
+    double precision a(n, n), x(n, n)
+    double precision abserr, b2, bar
+    double precision beta, coeff, c, s, cs, sc
+
+    ! initialize x(i,j)=0, x(i,i)=1
+    ! *** the array operation x=0.0 is specific for Fortran 90/95
+    x = 0.0
+    do i = 1, n
+        x(i, i) = 1.0
+    end do
+
+    ! find the sum of all off-diagonal elements (squared)
+    b2 = 0.0
+    do i = 1, n
+        do j = 1, n
+            if (i .ne. j) b2 = b2 + a(i, j)**2
+        end do
+    end do
+
+    if (b2 <= abserr) return
+
+    ! average for off-diagonal elements /2
+    bar = 0.5 * b2/float(n * n)
+
+    do while (b2 .gt. abserr)
+        do i = 1, n - 1
+            do j = i + 1, n
+                if (a(j, i)**2 <= bar) cycle ! do not touch small elements
+                b2 = b2 - 2.0 * a(j, i)**2
+                bar = 0.5 * b2/float(n * n)
+                ! calculate coefficient c and s for Givens matrix
+                beta = (a(j, j) - a(i, i))/(2.0 * a(j, i))
+                coeff = 0.5 * beta/sqrt(1.0 + beta**2)
+                s = sqrt(max(0.5 + coeff, 0.0))
+                c = sqrt(max(0.5 - coeff, 0.0))
+                ! recalculate rows i and j
+                do k = 1, n
+                    cs = c * a(i, k) + s * a(j, k)
+                    sc = -s * a(i, k) + c * a(j, k)
+                    a(i, k) = cs
+                    a(j, k) = sc
+                end do
+                ! new matrix a_{k+1} from a_{k}, and eigenvectors
+                do k = 1, n
+                    cs = c * a(k, i) + s * a(k, j)
+                    sc = -s * a(k, i) + c * a(k, j)
+                    a(k, i) = cs
+                    a(k, j) = sc
+                    cs = c * x(k, i) + s * x(k, j)
+                    sc = -s * x(k, i) + c * x(k, j)
+                    x(k, i) = cs
+                    x(k, j) = sc
+                end do
+            end do
+        end do
+    end do
+    return
+    end subroutine Eigen
+
 
 
 subroutine MkOpFiles()

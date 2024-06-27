@@ -2,7 +2,10 @@
       SUBROUTINE NEUTR (ST,DE,DEL,REV,ITER)
 
 C****************************************************************
-C           NEUTRAL LOADING SURFACES
+C     NEUTRAL LOADING SURFACES
+C     FROM PROF. STOLLE
+C     TRYING TO MODEL SAND UNDER UNDRAINED CONDITIONS
+C     FOR MORE INFORMATION OF THEORY, REFER TO PROF. STOLLE NOTE 
 C****************************************************************
 
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
